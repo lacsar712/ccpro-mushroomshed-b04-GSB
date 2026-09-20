@@ -15,6 +15,7 @@ export interface Room {
   species: string
   capacityBags: number
   status: RoomStatus
+  openFlushHarvest: boolean
 }
 
 export interface ClimateLog {
@@ -31,10 +32,12 @@ export interface FlushHarvest {
   id: number
   roomId: number
   harvestedAt: string
+  endedAt?: string | null
   flushNo: number
   weightKg: number
   grade: HarvestGrade
   operatorName: string
+  open: boolean
 }
 
 export interface DashboardStats {
@@ -42,4 +45,10 @@ export interface DashboardStats {
   fruitingRoomCount: number
   climateLast24h: number
   harvestKgLast7d: number
+  openFlushHarvestCount: number
+}
+
+export interface OpenCheck {
+  totalOpen: number
+  byRoom: Record<string, number>
 }

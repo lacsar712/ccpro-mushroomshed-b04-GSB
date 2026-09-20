@@ -46,10 +46,17 @@ docker compose up --build
 2. **Shed 菇房**：`name`、`location`、`notes`
 3. **Room 出菇室**：`shedId`、`roomCode`、`species`、`capacityBags`、`status(fruiting|idle|sanitize)`；同菇房 `roomCode` 唯一
 4. **ClimateLog 环境记录**：`roomId`、`recordedAt`、`tempC`、`humidityPct`、`co2Ppm`、`notes`；`humidityPct ∈ [1,100]`，否则 **400**
-5. **FlushHarvest 采收**：`roomId`、`harvestedAt`、`flushNo(≥1)`、`weightKg`、`grade(A|B|C)`、`operatorName`；`weightKg > 0`，否则 **400**
-6. **Dashboard**：`shedTotal`、`fruitingRoomCount`、`climateLast24h`、`harvestKgLast7d`
+5. **FlushHarvest 采收**：`roomId`、`harvestedAt`、`endedAt?`、`flushNo(≥1)`、`weightKg`、`grade(A|B|C)`、`operatorName`
+   - **进行中 vs 已结束**：`endedAt` 为空 = 进行中（未称重）；非空 = 已称重结束。判定唯一来源 `backend/app/services/flush_open.py` 的 `is_open()` / `count_open()`，列表 `open` 标记、室列表 `openFlushHarvest`、Dashboard 与 open-check 全部共用它
+   - 新建即进行中：`weightKg` 允许为 **0**（未称重）；`Room` 必须为 `fruiting`，否则 **409**；同室同时最多一条进行中，违反 **409** 且响应带 `existingHarvestId`
+   - `POST /api/flush-harvests/:id/end` 称重结束：`endedAt` 必须晚于 `harvestedAt`（否则 **400**）、`weightKg > 0`（否则 **400**）、已结束再结束 **409**；无 PUT 接口，`endedAt` 只能经 `/end` 写入
+   - 已结束 **禁止删除**（**409**）；进行中可删
+   - `GET /api/flush-harvests/open-check` 对账：返回 `totalOpen` 与 `byRoom`，与 Dashboard `openFlushHarvestCount`、室列表汇总三方一致
+6. **Dashboard**：`shedTotal`、`fruitingRoomCount`、`climateLast24h`、`harvestKgLast7d`、`openFlushHarvestCount`
 
-各实体 API：`GET/POST` 列表与创建、`DELETE` 按 ID 删除。
+各实体 API：`GET/POST` 列表与创建、`DELETE` 按 ID 删除（采收另有 `POST :id/end`）。
+
+> **注意**：本次迭代为 `flush_harvests` 新增 `ended_at` 列。项目用 `create_all` 建表、不含迁移，已有数据卷需重建：`docker compose down -v && docker compose up --build`。
 
 ## 前端页面
 
@@ -97,6 +104,7 @@ MushroomShed-01/
 │       ├── utils.py
 │       ├── models/
 │       ├── schemas/
+│       ├── services/
 │       └── routes/
 └── frontend/
     ├── Dockerfile

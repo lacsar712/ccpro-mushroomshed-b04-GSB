@@ -7,6 +7,7 @@ from app.database import SessionLocal
 from app.models.room import Room
 from app.models.shed import Shed
 from app.schemas.room import RoomCreateSchema, RoomOutSchema
+from app.services.flush_open import count_open
 from app.utils import validation_error_response
 
 bp = Blueprint("rooms", __name__, url_prefix="/api/rooms")
@@ -26,6 +27,9 @@ def list_rooms():
         if shed_id is not None:
             q = q.filter(Room.shed_id == shed_id)
         rows = q.order_by(Room.id).all()
+        for room in rows:
+            # 与 Dashboard / open-check 共用同一 count_open
+            room.open_flush_harvest = count_open(db, room_id=room.id) > 0
         return jsonify(out_many.dump(rows))
     finally:
         db.close()

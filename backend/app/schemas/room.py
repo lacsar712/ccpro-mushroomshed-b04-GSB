@@ -19,3 +19,5 @@ class RoomOutSchema(Schema):
     species = fields.Str()
     capacity_bags = fields.Int(data_key="capacityBags")
     status = fields.Str()
+    # 由路由用 services.flush_open.count_open 注入
+    open_flush_harvest = fields.Bool(data_key="openFlushHarvest", dump_only=True)

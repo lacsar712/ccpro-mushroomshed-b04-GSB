@@ -294,6 +294,16 @@ th {
   color: var(--mushroom-brown);
 }
 
+.badge.open {
+  background: #fff3e0;
+  color: var(--warn);
+}
+
+.badge.ended {
+  background: #edf0ee;
+  color: #607068;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;

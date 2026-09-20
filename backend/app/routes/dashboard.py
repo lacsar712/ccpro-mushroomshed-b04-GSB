@@ -10,6 +10,7 @@ from app.models.flush_harvest import FlushHarvest
 from app.models.room import Room
 from app.models.shed import Shed
 from app.schemas.dashboard import DashboardStatsSchema
+from app.services.flush_open import count_open
 
 bp = Blueprint("dashboard", __name__, url_prefix="/api/dashboard")
 
@@ -43,6 +44,7 @@ def get_stats():
             "fruiting_room_count": fruiting_room_count,
             "climate_last_24h": climate_last_24h,
             "harvest_kg_last_7d": float(harvest_kg_last_7d),
+            "open_flush_harvest_count": count_open(db),
         }
         return jsonify(stats_schema.dump(payload))
     finally:

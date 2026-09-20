@@ -73,7 +73,15 @@ def seed() -> None:
                 capacity_bags=500,
                 status="sanitize",
             )
-            db.add_all([r1, r2, r3, r4])
+            # fruiting 且无任何采收记录：用于验证「fruiting 无进行中」场景
+            r5 = Room(
+                shed_id=s2.id,
+                room_code="V-03",
+                species="金针菇",
+                capacity_bags=700,
+                status="fruiting",
+            )
+            db.add_all([r1, r2, r3, r4, r5])
             db.flush()
 
             now = datetime.now(timezone.utc)
@@ -111,25 +119,31 @@ def seed() -> None:
                         co2_ppm=690.0,
                         notes=None,
                     ),
+                    # r1：第 1 潮已结束（endedAt 非空）
                     FlushHarvest(
                         room_id=r1.id,
-                        harvested_at=now - timedelta(hours=6),
-                        flush_no=2,
-                        weight_kg=42.5,
-                        grade="A",
-                        operator_name="出菇员",
-                    ),
-                    FlushHarvest(
-                        room_id=r1.id,
-                        harvested_at=now - timedelta(days=1),
+                        harvested_at=now - timedelta(days=1, hours=4),
+                        ended_at=now - timedelta(days=1, hours=1),
                         flush_no=1,
                         weight_kg=38.0,
                         grade="B",
                         operator_name="场长",
                     ),
+                    # r1：第 2 潮进行中（endedAt 空、未称重 weightKg=0）
+                    FlushHarvest(
+                        room_id=r1.id,
+                        harvested_at=now - timedelta(hours=6),
+                        ended_at=None,
+                        flush_no=2,
+                        weight_kg=0.0,
+                        grade="A",
+                        operator_name="出菇员",
+                    ),
+                    # r3：仅已结束，无进行中
                     FlushHarvest(
                         room_id=r3.id,
-                        harvested_at=now - timedelta(days=3),
+                        harvested_at=now - timedelta(days=3, hours=5),
+                        ended_at=now - timedelta(days=3, hours=2),
                         flush_no=1,
                         weight_kg=55.2,
                         grade="A",

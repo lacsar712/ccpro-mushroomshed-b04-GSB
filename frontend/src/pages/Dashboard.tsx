@@ -38,6 +38,10 @@ export default function Dashboard() {
             {stats() ? stats()!.harvestKgLast7d.toFixed(2) : '—'}
           </div>
         </div>
+        <div class="stat-card accent">
+          <div class="stat-label">进行中采收</div>
+          <div class="stat-value">{stats()?.openFlushHarvestCount ?? '—'}</div>
+        </div>
       </div>
     </div>
   )
