@@ -12,8 +12,7 @@ from app.utils import validation_error_response
 bp = Blueprint("rooms", __name__, url_prefix="/api/rooms")
 
 create_schema = RoomCreateSchema()
-out_schema = RoomOutSchema()
-out_many = RoomOutSchema(many=True)
+# 输出用 schema 在请求内实例化（需经 context 传 db 给 openFlushHarvest）。
 
 
 @bp.get("")
@@ -26,7 +25,8 @@ def list_rooms():
         if shed_id is not None:
             q = q.filter(Room.shed_id == shed_id)
         rows = q.order_by(Room.id).all()
-        return jsonify(out_many.dump(rows))
+        # 每请求实例化，借 context 把 db 传给 openFlushHarvest 的统一 count_open。
+        return jsonify(RoomOutSchema(many=True, context={"db": db}).dump(rows))
     finally:
         db.close()
 
@@ -57,7 +57,7 @@ def create_room():
             db.rollback()
             return jsonify({"detail": "同菇房内出菇室编号已存在"}), 400
         db.refresh(item)
-        return jsonify(out_schema.dump(item)), 201
+        return jsonify(RoomOutSchema(context={"db": db}).dump(item)), 201
     finally:
         db.close()
 

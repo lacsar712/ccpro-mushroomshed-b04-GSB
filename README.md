@@ -38,7 +38,7 @@ docker compose up --build
 - 前端：http://localhost:3800
 - 后端健康检查：http://localhost:8800/api/health
 
-后端 entrypoint 流程：等待 MySQL 就绪 → `create_all` 建表 → seed 初始数据 → 启动 gunicorn。
+后端 entrypoint 流程：等待 MySQL 就绪 → `create_all` 建表 → 幂等补齐新增可空列（如 `ended_at`）→ seed 初始数据 → 启动 gunicorn。
 
 ## 功能模块
 
@@ -46,10 +46,19 @@ docker compose up --build
 2. **Shed 菇房**：`name`、`location`、`notes`
 3. **Room 出菇室**：`shedId`、`roomCode`、`species`、`capacityBags`、`status(fruiting|idle|sanitize)`；同菇房 `roomCode` 唯一
 4. **ClimateLog 环境记录**：`roomId`、`recordedAt`、`tempC`、`humidityPct`、`co2Ppm`、`notes`；`humidityPct ∈ [1,100]`，否则 **400**
-5. **FlushHarvest 采收**：`roomId`、`harvestedAt`、`flushNo(≥1)`、`weightKg`、`grade(A|B|C)`、`operatorName`；`weightKg > 0`，否则 **400**
-6. **Dashboard**：`shedTotal`、`fruitingRoomCount`、`climateLast24h`、`harvestKgLast7d`
+5. **FlushHarvest 采收潮次**：`roomId`、`harvestedAt`、`flushNo(≥1)`、`weightKg`、`grade(A|B|C)`、`operatorName`、可空 `endedAt`
+   - `endedAt` 为空即**进行中（open）**，非空为**已称重结束**；进行中判定统一走 `services/flush_open.py` 的 `is_open` / `count_open`
+   - 新建（开潮）：出菇室必须为 `fruiting`，否则 **409**（`room_not_fruiting`）；同室同时最多一条进行中，否则 **409** 并返回 `existingHarvestId`；进行中 `weightKg` 允许为 0；`endedAt` 一律由服务端置空，不接受客户端传入
+   - 称重结束：`POST /api/flush-harvests/:id/end`，body `{ weightKg, endedAt }`；`weightKg` 必须 > 0、`endedAt` 必须晚于 `harvestedAt`，否则 **400**；已结束再结束 **409**（`harvest_already_ended`）；无 PUT 接口可绕过
+   - 删除：进行中可删；已结束禁止删除（**409**）
+   - 列表每条带 `open` 布尔（与 `endedAt` 同源 `is_open`）
+   - 对账：`GET /api/flush-harvests/open-check` 返回 `{ totalOpen, byRoom }`
+6. **Room 列表**：每行带 `openFlushHarvest` 布尔，来自统一的 `count_open(db, roomId)`
+7. **Dashboard**：在原 4 项外增加 `openFlushHarvestCount`；该计数、`open-check.totalOpen`、出菇室列表标记与采收列表汇总全部共用 `count_open`，三边一致
 
-各实体 API：`GET/POST` 列表与创建、`DELETE` 按 ID 删除。
+> 前端不自行统计进行中数量，一律使用服务端返回的 `open` / `openFlushHarvest` / `openFlushHarvestCount` / `open-check`。
+
+各实体 API：`GET/POST` 列表与创建、`DELETE` 按 ID 删除；FlushHarvest 另有 `POST /:id/end` 与 `GET /open-check`。
 
 ## 前端页面
 

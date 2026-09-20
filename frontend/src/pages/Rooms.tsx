@@ -141,6 +141,7 @@ export default function Rooms() {
               <th>品种</th>
               <th>容量</th>
               <th>状态</th>
+              <th>进行中潮次</th>
               <th />
             </tr>
           </thead>
@@ -155,6 +156,13 @@ export default function Rooms() {
                   <td>{r.capacityBags}</td>
                   <td>
                     <span class={statusBadge(r.status)}>{r.status}</span>
+                  </td>
+                  <td>
+                    {r.openFlushHarvest ? (
+                      <span class="badge fruiting">进行中</span>
+                    ) : (
+                      <span class="muted">无</span>
+                    )}
                   </td>
                   <td>
                     <button type="button" class="btn ghost" onClick={() => remove(r.id)}>

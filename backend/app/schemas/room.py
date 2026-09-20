@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields, validate
 
+from app.services.flush_open import count_open
 
 ROOM_STATUSES = ("fruiting", "idle", "sanitize")
 
@@ -19,3 +20,8 @@ class RoomOutSchema(Schema):
     species = fields.Str()
     capacity_bags = fields.Int(data_key="capacityBags")
     status = fields.Str()
+    # 进行中潮次标记，必须经 count_open 计算（序列化时由 context 传入 db）。
+    open_flush_harvest = fields.Method("get_open_flush_harvest", data_key="openFlushHarvest")
+
+    def get_open_flush_harvest(self, obj) -> bool:
+        return count_open(self.context["db"], obj.id) > 0

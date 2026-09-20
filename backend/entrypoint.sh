@@ -24,6 +24,9 @@ PY
 echo "Creating tables..."
 python -c "from app.database import Base, engine; from app import models; Base.metadata.create_all(bind=engine)"
 
+echo "Syncing schema (additive columns)..."
+python -c "from app.database import engine; from app.schema_sync import ensure_schema; ensure_schema(engine)"
+
 echo "Seeding data..."
 python -c "from app.seed import seed; seed()"
 

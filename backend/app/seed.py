@@ -112,29 +112,36 @@ def seed() -> None:
                         notes=None,
                     ),
                     FlushHarvest(
+                        # r1 进行中潮次：weightKg 允许 0，endedAt 为空
                         room_id=r1.id,
                         harvested_at=now - timedelta(hours=6),
                         flush_no=2,
-                        weight_kg=42.5,
+                        weight_kg=0.0,
                         grade="A",
                         operator_name="出菇员",
+                        ended_at=None,
                     ),
                     FlushHarvest(
+                        # r1 上一潮已称重结束
                         room_id=r1.id,
                         harvested_at=now - timedelta(days=1),
                         flush_no=1,
                         weight_kg=38.0,
                         grade="B",
                         operator_name="场长",
+                        ended_at=now - timedelta(days=1) + timedelta(hours=3),
                     ),
                     FlushHarvest(
-                        room_id=r3.id,
-                        harvested_at=now - timedelta(days=3),
+                        # r2(idle) 仅有已结束潮次（已停产转空闲）
+                        room_id=r2.id,
+                        harvested_at=now - timedelta(days=5),
                         flush_no=1,
-                        weight_kg=55.2,
-                        grade="A",
-                        operator_name="出菇员",
+                        weight_kg=30.5,
+                        grade="C",
+                        operator_name="场长",
+                        ended_at=now - timedelta(days=5) + timedelta(hours=4),
                     ),
+                    # r3 为 fruiting 但无进行中潮次（新转入出菇，尚未开潮）
                 ]
             )
             db.commit()

@@ -15,7 +15,7 @@ const empty = {
   roomId: '',
   harvestedAt: toLocalInput(),
   flushNo: '1',
-  weightKg: '',
+  weightKg: '0',
   grade: 'A' as HarvestGrade,
   operatorName: '',
 }
@@ -61,10 +61,35 @@ export default function FlushHarvests() {
     }
   }
 
-  async function remove(id: number) {
-    if (!confirm('确认删除该采收记录？')) return
+  // 称重结束：open 状态由服务端返回，前端不自行判断/计数。
+  async function finish(r: FlushHarvest) {
+    const input = prompt(`为 #${r.id} 潮次输入实际称重重量 (kg，须 > 0)`, r.weightKg > 0 ? String(r.weightKg) : '')
+    if (input === null) return
+    const weightKg = Number(input)
+    if (!Number.isFinite(weightKg) || weightKg <= 0) {
+      setError('weightKg 须大于 0')
+      return
+    }
+    setError('')
     try {
-      await api(`/api/flush-harvests/${id}`, { method: 'DELETE' })
+      await api(`/api/flush-harvests/${r.id}/end`, {
+        method: 'POST',
+        body: JSON.stringify({ weightKg, endedAt: new Date().toISOString() }),
+      })
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '结束失败')
+    }
+  }
+
+  async function remove(r: FlushHarvest) {
+    if (!r.open) {
+      setError('已称重结束的记录禁止删除')
+      return
+    }
+    if (!confirm(`确认删除进行中的采收记录 #${r.id}？`)) return
+    try {
+      await api(`/api/flush-harvests/${r.id}`, { method: 'DELETE' })
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败')
@@ -75,13 +100,15 @@ export default function FlushHarvests() {
     <div>
       <header class="page-header">
         <h1>采收记录</h1>
-        <p class="muted">潮次、等级与重量；weightKg 须 &gt; 0</p>
+        <p class="muted">
+          开潮即「进行中」（weightKg 可填 0），称重后结束并填入实际重量；同室同时仅一条进行中
+        </p>
       </header>
       {error() && <div class="error">{error()}</div>}
 
       <form class="panel form-grid" onSubmit={onSubmit}>
         <label>
-          出菇室
+          出菇室（仅 fruiting 可开潮）
           <select
             value={form().roomId}
             onChange={(e) => setForm({ ...form(), roomId: e.currentTarget.value })}
@@ -90,15 +117,16 @@ export default function FlushHarvests() {
             <option value="">选择出菇室</option>
             <For each={rooms()}>
               {(r) => (
-                <option value={String(r.id)}>
+                <option value={String(r.id)} disabled={r.status !== 'fruiting' || r.openFlushHarvest}>
                   {r.roomCode} · {r.species}
+                  {r.status !== 'fruiting' ? '（非 fruiting）' : r.openFlushHarvest ? '（进行中潮次未结束）' : ''}
                 </option>
               )}
             </For>
           </select>
         </label>
         <label>
-          采收时间
+          开潮时间
           <input
             type="datetime-local"
             value={form().harvestedAt}
@@ -117,11 +145,11 @@ export default function FlushHarvests() {
           />
         </label>
         <label>
-          重量 (kg)
+          初始重量 (kg，进行中可填 0)
           <input
             type="number"
             step="0.01"
-            min="0.01"
+            min="0"
             value={form().weightKg}
             onInput={(e) => setForm({ ...form(), weightKg: e.currentTarget.value })}
             required
@@ -147,7 +175,7 @@ export default function FlushHarvests() {
           />
         </label>
         <button type="submit" class="btn primary">
-          新增采收
+          开潮（进行中）
         </button>
       </form>
 
@@ -157,11 +185,13 @@ export default function FlushHarvests() {
             <tr>
               <th>ID</th>
               <th>室 ID</th>
-              <th>时间</th>
+              <th>开潮时间</th>
               <th>潮次</th>
               <th>重量</th>
               <th>等级</th>
               <th>操作人</th>
+              <th>状态</th>
+              <th>结束时间</th>
               <th />
             </tr>
           </thead>
@@ -179,7 +209,26 @@ export default function FlushHarvests() {
                   </td>
                   <td>{r.operatorName}</td>
                   <td>
-                    <button type="button" class="btn ghost" onClick={() => remove(r.id)}>
+                    {r.open ? (
+                      <span class="badge fruiting">进行中</span>
+                    ) : (
+                      <span class="badge idle">已称重结束</span>
+                    )}
+                  </td>
+                  <td>{r.endedAt ? new Date(r.endedAt).toLocaleString() : '—'}</td>
+                  <td>
+                    {r.open && (
+                      <button type="button" class="btn primary" onClick={() => finish(r)}>
+                        称重结束
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      class="btn ghost"
+                      disabled={!r.open}
+                      title={r.open ? '' : '已结束记录禁止删除'}
+                      onClick={() => remove(r)}
+                    >
                       删除
                     </button>
                   </td>
